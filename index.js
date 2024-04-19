@@ -82,8 +82,8 @@ img2.onload = () => {
     jsDraw(img2, 202, 208, 195)
 }
 
-img.src = './test.png';
-img2.src = './test.png';
+img.src = 'https://raw.githubusercontent.com/Dramalf/image-color-change-wasm-js-demo/main/test.png';
+img2.src = 'https://raw.githubusercontent.com/Dramalf/image-color-change-wasm-js-demo/main/test.png';
 
 function hslToRgb(h, s, l) {
     var r, g, b;
