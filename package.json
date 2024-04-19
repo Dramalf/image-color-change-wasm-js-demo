@@ -7,9 +7,6 @@
     "build": "webpack --config webpack.config.js",
     "start": "webpack-dev-server"
   },
-  "dependencies": {
-    "thief-color-rs": "file:./pkg"
-  },
   "devDependencies": {
     "copy-webpack-plugin": "^5.0.0",
     "hello-wasm-pack": "^0.1.0",

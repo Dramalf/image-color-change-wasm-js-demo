@@ -1,5 +1,5 @@
-import { new_buffer, harmonize, remove_buffer } from "thief-color-rs";
-import { memory } from 'thief-color-rs/thief_color_rs_bg.wasm'
+import { new_buffer, harmonize, remove_buffer } from "./pkg";
+import { memory } from './pkg/thief_color_rs_bg.wasm'
 const img = new Image();
 const img2 = new Image();
 const input = document.getElementById('color-input');
