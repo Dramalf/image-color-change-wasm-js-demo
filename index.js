@@ -81,7 +81,8 @@ img.onload = () => {
 img2.onload = () => {
     jsDraw(img2, 202, 208, 195)
 }
-
+img.crossOrigin = "Anonymous";
+img2.crossOrigin = "Anonymous";
 img.src = 'https://raw.githubusercontent.com/Dramalf/image-color-change-wasm-js-demo/main/test.png';
 img2.src = 'https://raw.githubusercontent.com/Dramalf/image-color-change-wasm-js-demo/main/test.png';
 
