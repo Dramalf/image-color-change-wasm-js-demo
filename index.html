@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Hello wasm-pack!</title>
+  <style>
+    body {
+      width: 100vw;
+      height: 100vh;
+
+      overflow: hidden;
+    }
+
+    .wrapper {
+      width: 100vw;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .item {
+      width: max-content;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      /* float: left; */
+      width: 30vw;
+
+    }
+
+    img {
+      width: 30vw;
+      object-fit: contain;
+    }
+
+    span {
+      /* display: inline-block; */
+      width: 120px;
+    }
+
+    .option {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+
+    }
+    .option input{
+      margin: 0 16px 0 6px;
+    }
+  </style>
+
+</head>
+
+<body>
+  <div class="wrapper">
+    <div class="item"><img src="./test.png" />
+      <div>origin</div>
+      <div >render time</div>
+    </div>
+    <div class="item"> <canvas id="c1"></canvas>
+      <div>wasm</div>
+      <div id="wasm-t"></div>
+    </div>
+
+    <div class="item"><canvas id="c2"></canvas>
+      <div>js</div>
+      <div id="js-t"></div>
+    </div>
+  </div>
+
+  <div class="option">
+    <div>color:</div><input id="color-input" type="color" />
+  </div>
+
+  <script src="./bootstrap.js"></script>
+</body>
+
+</html>

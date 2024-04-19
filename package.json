@@ -1,0 +1,21 @@
+{
+  "name": "demo",
+  "version": "0.1.0",
+  "description": "demo",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "start": "webpack-dev-server"
+  },
+  "dependencies": {
+    "thief-color-rs": "file:./pkg"
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "^5.0.0",
+    "hello-wasm-pack": "^0.1.0",
+    "webpack": "^4.29.3",
+    "webpack-cli": "^3.1.0",
+    "webpack-dev-server": "^3.1.5"
+  },
+  "repository": "https://github.com/Dramalf/image-color-change-wasm-js-demo.git"
+}

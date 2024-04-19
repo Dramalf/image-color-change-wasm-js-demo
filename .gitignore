@@ -6,3 +6,5 @@ wasm-pack.log
 .DS_Store
 **/.DS_Store
 .DS_Store?
+node_modules
+dist
