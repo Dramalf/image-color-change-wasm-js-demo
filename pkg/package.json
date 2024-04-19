@@ -1,0 +1,19 @@
+{
+  "name": "thief-color-rs",
+  "collaborators": [
+    "Dramalf <dramalfcsc@gmail.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "thief_color_rs_bg.wasm",
+    "thief_color_rs.js",
+    "thief_color_rs_bg.js",
+    "thief_color_rs.d.ts"
+  ],
+  "module": "thief_color_rs.js",
+  "types": "thief_color_rs.d.ts",
+  "sideEffects": [
+    "./thief_color_rs.js",
+    "./snippets/*"
+  ]
+}
