@@ -151,10 +151,10 @@ export function remove_buffer(key) {
 * @param {number} ch
 * @param {number} cs
 */
-export function harmonize(key, ch, cs) {
+export function harmonize_rayon(key, ch, cs) {
     const ptr0 = passStringToWasm0(key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
-    wasm.harmonize(ptr0, len0, ch, cs);
+    wasm.harmonize_rayon(ptr0, len0, ch, cs);
 }
 
 function addHeapObject(obj) {

@@ -1,191 +1,138 @@
-mod utils;
+/*
+ * Copyright 2022 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-use std::collections::HashMap;
-use std::sync::Mutex;
-use utils::set_panic_hook;
+use crossbeam_channel::{bounded, Receiver, Sender};
+use js_sys::Promise;
+use rayon::{ThreadBuilder, ThreadPoolBuilder};
 use wasm_bindgen::prelude::*;
-use rayon::prelude::*;
+use wasm_bindgen::JsValue;
 
-#[macro_use]
-extern crate lazy_static;
+#[cfg(feature = "no-bundler")]
+use js_sys::JsString;
 
-#[macro_use]
-extern crate serde_derive;
-
-// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
-// allocator.
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
+// Naming is a workaround for https://github.com/rustwasm/wasm-bindgen/issues/2429
+// and https://github.com/rustwasm/wasm-bindgen/issues/1762.
+#[allow(non_camel_case_types)]
 #[wasm_bindgen]
+#[doc(hidden)]
+pub struct wbg_rayon_PoolBuilder {
+    num_threads: usize,
+    sender: Sender<ThreadBuilder>,
+    receiver: Receiver<ThreadBuilder>,
+}
+
+#[cfg_attr(
+    not(feature = "no-bundler"),
+    wasm_bindgen(module = "/src/workerHelpers.js")
+)]
+#[cfg_attr(
+    feature = "no-bundler",
+    wasm_bindgen(module = "/src/workerHelpers.no-bundler.js")
+)]
 extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn log(s: &str);
+    #[wasm_bindgen(js_name = startWorkers)]
+    fn start_workers(module: JsValue, memory: JsValue, builder: wbg_rayon_PoolBuilder) -> Promise;
 }
 
-pub struct BufferStorage {
-    pub buffer_map: HashMap<String, Vec<u8>>,
+#[cfg(not(feature = "no-bundler"))]
+fn _ensure_worker_emitted() {
+    // Just ensure that the worker is emitted into the output folder, but don't actually use the URL.
+    wasm_bindgen::link_to!(module = "/src/workerHelpers.worker.js");
 }
 
-impl BufferStorage {
-    fn new() -> Self {
-        BufferStorage {
-            buffer_map: HashMap::new(),
+#[wasm_bindgen]
+impl wbg_rayon_PoolBuilder {
+    fn new(num_threads: usize) -> Self {
+        let (sender, receiver) = bounded(num_threads);
+        Self {
+            num_threads,
+            sender,
+            receiver,
         }
     }
-}
 
-macro_rules! log {
-  ($($t:tt)*) => (crate::log(&("[C]".to_string() + &format_args!($($t)*).to_string())))
-}
-
-lazy_static! {
-    pub static ref GlobalBufferStorage: Mutex<BufferStorage> = {
-        let buffer_storage = BufferStorage::new();
-        Mutex::new(buffer_storage)
-    };
-}
-
-#[wasm_bindgen]
-pub fn set_wasm_panic_hook() {
-    // can be continued
-    set_panic_hook();
-}
-
-#[wasm_bindgen]
-pub fn new_buffer(key: String, len: usize) -> *const u8 {
-    log!("new_buffer, key: {:?}, len: {:?}", key, len);
-    let mut global_buffer_storage = GlobalBufferStorage.lock().unwrap();
-    let mut buffer = vec![15; len];
-    let ptr = buffer.as_ptr();
-    global_buffer_storage.buffer_map.insert(key, buffer);
-    ptr
-}
-
-#[wasm_bindgen]
-pub fn get_buffer(key: String) -> *const u8 {
-    let mut global_buffer_storage = GlobalBufferStorage.lock().unwrap();
-    if let Some(buffer) = global_buffer_storage.buffer_map.get(&key) {
-        return buffer.as_ptr();
-    } else {
-        return Vec::new().as_ptr();
-    }
-}
-
-#[wasm_bindgen]
-pub fn print_buffer(key: String) {
-    let mut global_buffer_storage = GlobalBufferStorage.lock().unwrap();
-    if let Some(buffer) = global_buffer_storage.buffer_map.get(&key) {
-        log!("[render-wasm]print buffer: {:?}", buffer);
-    }
-}
-
-#[wasm_bindgen]
-pub fn remove_buffer(key: String) {
-    let mut global_buffer_storage = GlobalBufferStorage.lock().unwrap();
-    if let Some(buffer) = global_buffer_storage.buffer_map.remove(&key) {
-        log!("remove buffer success");
-    } else {
-        log!("remove buffer error");
-    }
-}
-
-fn hue2rgb(p: f32, q: f32, t: f32) -> f32 {
-    let mut t = t;
-    if t < 0.0 {
-        t += 1.0;
-    }
-    if t > 1.0 {
-        t -= 1.0;
-    }
-    if t < 0.166 {
-        return p + (q - p) * 6.0 * t;
-    }
-    if t < 0.5 {
-        return q;
-    }
-    if t < 0.66 {
-        return p + (q - p) * (4.0 - 6.0 * t);
-    }
-    p
-}
-
-fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (u8, u8, u8) {
-    let (mut r, mut g, mut b): (f32, f32, f32);
-
-    if s == 0.0 {
-        r = l;
-        g = l;
-        b = l; // achromatic
-    } else {
-        let q = if l < 0.5 { l + l * s } else { l + s - l * s };
-        let p = 2.0 * l - q;
-        r = hue2rgb(p, q, h + 0.33);
-        g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 0.33);
-    }
-
-    ((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8)
-}
-
-#[wasm_bindgen]
-pub fn harmonize(key:String, ch: f32, cs: f32) {
-    let mut global_buffer_storage = GlobalBufferStorage.lock().unwrap();
-    if let Some(buffer) = global_buffer_storage.buffer_map.get_mut(&key) {
-    // Divide the buffer into four equal parts
-    let chunk_size = (buffer.len() / 4) as usize;
-    let chunks: Vec<&mut [u8]> = buffer.chunks_mut(chunk_size).collect();
-    chunks.into_par_iter().for_each(|chunk| {
-        for i in (0..chunk.len()).step_by(4) {
-            let ( r, g, b)= ((chunk[i] as f32)/255.0, (chunk[i + 1] as f32)/255.0, (chunk[i + 2] as f32)/255.0);
-                let max = r.max(g).max(b);
-                let min = r.min(g).min(b);
-                let l = (max + min) / 2.0;
-                let s: f32 = if cs>0.1{
-                    cs
-                }
-                else if max == min {
-                    0.0
-                } else if l > 0.5 {
-                    (max - min) / (2.0 - max - min)
-                } else {
-                    (max - min) / (max + min)
-                };
-                // // 将HSL值转换回RGB
-                let (new_r, new_g, new_b)= hsl_to_rgb(ch, s, l);
-        
-                // 更新图像数据
-                chunk[i] = new_r;
-                chunk[i + 1] = new_g;
-                chunk[i + 2] = new_b;
+    #[cfg(feature = "no-bundler")]
+    #[wasm_bindgen(js_name = mainJS)]
+    pub fn main_js(&self) -> JsString {
+        #[wasm_bindgen]
+        extern "C" {
+            #[wasm_bindgen(js_namespace = ["import", "meta"], js_name = url)]
+            static URL: JsString;
         }
-    });
-    // for i in (0..buffer.len()).step_by(4) {
-    //     // 将RGB值转换为HSL
-    //     let ( r, g, b)= ((buffer[i] as f32)/255.0, (buffer[i + 1] as f32)/255.0, (buffer[i + 2] as f32)/255.0);
-    //     let max = r.max(g).max(b);
-    //     let min = r.min(g).min(b);
-    //     let l = (max + min) / 2.0;
-    //     let s: f32 = if cs>0.1{
-    //         cs
-    //     }
-    //     else if max == min {
-    //         0.0
-    //     } else if l > 0.5 {
-    //         (max - min) / (2.0 - max - min)
-    //     } else {
-    //         (max - min) / (max + min)
-    //     };
-    //     // // 将HSL值转换回RGB
-    //     let (new_r, new_g, new_b)= hsl_to_rgb(ch, s, l);
 
-    //     // 更新图像数据
-    //     buffer[i] = new_r;
-    //     buffer[i + 1] = new_g;
-    //     buffer[i + 2] = new_b;
-    // }
-    } else {
-        return ();
+        URL.clone()
     }
+
+    #[wasm_bindgen(js_name = numThreads)]
+    pub fn num_threads(&self) -> usize {
+        self.num_threads
+    }
+
+    pub fn receiver(&self) -> *const Receiver<ThreadBuilder> {
+        &self.receiver
+    }
+
+    // This should be called by the JS side once all the Workers are spawned.
+    // Important: it must take `self` by reference, otherwise
+    // `start_worker_thread` will try to receive a message on a moved value.
+    pub fn build(&mut self) {
+        ThreadPoolBuilder::new()
+            .num_threads(self.num_threads)
+            // We could use postMessage here instead of Rust channels,
+            // but currently we can't due to a Chrome bug that will cause
+            // the main thread to lock up before it even sends the message:
+            // https://bugs.chromium.org/p/chromium/issues/detail?id=1075645
+            .spawn_handler(move |thread| {
+                // Note: `send` will return an error if there are no receivers.
+                // We can use it because all the threads are spawned and ready to accept
+                // messages by the time we call `build()` to instantiate spawn handler.
+                self.sender.send(thread).unwrap_throw();
+                Ok(())
+            })
+            .build_global()
+            .unwrap_throw();
+    }
+}
+
+#[wasm_bindgen(js_name = initThreadPool)]
+#[doc(hidden)]
+pub fn init_thread_pool(num_threads: usize) -> Promise {
+    start_workers(
+        wasm_bindgen::module(),
+        wasm_bindgen::memory(),
+        wbg_rayon_PoolBuilder::new(num_threads),
+    )
+}
+
+#[wasm_bindgen]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[doc(hidden)]
+pub fn wbg_rayon_start_worker(receiver: *const Receiver<ThreadBuilder>)
+where
+    // Statically assert that it's safe to accept `Receiver` from another thread.
+    Receiver<ThreadBuilder>: Sync,
+{
+    // This is safe, because we know it came from a reference to PoolBuilder,
+    // allocated on the heap by wasm-bindgen and dropped only once all the
+    // threads are running.
+    //
+    // The only way to violate safety is if someone externally calls
+    // `exports.wbg_rayon_start_worker(garbageValue)`, but then no Rust tools
+    // would prevent us from issues anyway.
+    let receiver = unsafe { &*receiver };
+    // Wait for a task (`ThreadBuilder`) on the channel, and, once received,
+    // start executing it.
+    //
+    // On practice this will start running Rayon's internal event loop.
+    receiver.recv().unwrap_throw().run()
 }

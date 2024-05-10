@@ -27,4 +27,4 @@ export function remove_buffer(key: string): void;
 * @param {number} ch
 * @param {number} cs
 */
-export function harmonize(key: string, ch: number, cs: number): void;
+export function harmonize_rayon(key: string, ch: number, cs: number): void;
