@@ -76,32 +76,41 @@ function hexToRgb(hex) {
 }
 
 (async function init() {
-  let new_buffer,harmonize_rayon,memory;
-  let module;
-  let SUPPORT_THREADS=await threads();
-  if (SUPPORT_THREADS){
-    module=await import('./pkg-parallel/wasm_bindgen_rayon_demo.js');
-    let {memory:mem}= await module.default();
-    await module.initThreadPool(navigator.hardwareConcurrency);
-    new_buffer=module.new_buffer;
-    harmonize_rayon=module.harmonize_rayon
-    memory=mem;
-  }else{
-    module=await import('./pkg/wasm_bindgen_rayon_demo.js');
-    let {memory:mem}= await module.default();
-    new_buffer=module.new_buffer;
-    harmonize_rayon=module.harmonize_rayon
-    memory=mem;
+
+  const workerCount = navigator.hardwareConcurrency; // 你想要启动的 Workers 数量
+
+  const workers = [];
+
+  for (let i = 0; i < workerCount; i++) {
+    const worker = new Worker('./jsWorker.js');
+    workers.push(worker);
   }
-  let tip=document.getElementById('wasm-title');
-  tip.innerText=SUPPORT_THREADS?'wasm multi-thread':'wasm multi-thread';
+  let new_buffer, harmonize_rayon, memory;
+  let module;
+  let SUPPORT_THREADS = await threads();
+  if (SUPPORT_THREADS) {
+  module = await import('./pkg-parallel/wasm_bindgen_rayon_demo.js');
+    let { memory: mem } = await module.default();
+    await module.initThreadPool(navigator.hardwareConcurrency);
+    new_buffer = module.new_buffer;
+    harmonize_rayon = module.harmonize_rayon
+    memory = mem;
+  } else {
+    module = await import('./pkg/wasm_bindgen_rayon_demo.js');
+    let { memory: mem } = await module.default();
+    new_buffer = module.new_buffer;
+    harmonize_rayon = module.harmonize_rayon
+    memory = mem;
+  }
+  let tip = document.getElementById('wasm-title');
+  tip.innerText = SUPPORT_THREADS ? 'wasm multi-thread' : 'wasm multi-thread';
 
   const img = new Image();
   const img2 = new Image();
-
+  const img3 = new Image();
   const wasmt = document.getElementById("wasm-t")
   const jst = document.getElementById("js-t")
-
+  const jsmt = document.getElementById("js-m-t")
   let ptr = null
   let wasmData = null;
   function wasmDraw(img, r, g, b) {
@@ -168,21 +177,71 @@ function hexToRgb(hex) {
   }
   img.onload = () => {
     wasmDraw(img, 202, 208, 195)
+    // jsWorkerDraw(img, 202, 208, 195)
   }
   img2.onload = () => {
     jsDraw(img2, 202, 208, 195)
   }
-  img.crossOrigin = "Anonymous";
-  img2.crossOrigin = "Anonymous";
-  const url=document.getElementById('origin').src;
+  img3.onload = () => {
+    jsWorkerDraw(img, 202, 208, 195)
+  }
+  const url = document.getElementById('origin').src;
   console.log(url)
   img.src = url;
   img2.src = url;
-
+  img3.src=url;
   const input = document.getElementById('color-input');
   input.oninput = (e) => {
     const rgb = hexToRgb(e.target.value)
     wasmDraw(img, ...rgb);
     jsDraw(img2, ...rgb);
+    jsWorkerDraw(img3,...rgb);
+  }
+
+
+  function jsWorkerDraw(img, r, g, b) {
+    const canvas = document.getElementById("c3");
+
+    const w = img.width;
+    const h = img.height;
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const pixels = imageData.data; // ImageData 对象中的像素数组
+    let st = performance.now();
+    const segmentHeight = Math.ceil(canvas.height / workerCount);
+
+    for (let i = 0; i < workers.length; i++) {
+      const offset = i * segmentHeight * canvas.width * 4;
+      const length = Math.min(segmentHeight * canvas.width * 4, pixels.length - offset);
+      const segment = pixels.slice(offset, offset + length);
+
+      workers[i].postMessage({
+        imageData: segment,
+        width: canvas.width,
+        height: segmentHeight,
+        r, g, b,
+        offset: offset
+      }, [segment.buffer]);
+    }
+    let completed = 0;
+    for (let i = 0; i < workers.length; i++) {
+      workers[i].onmessage = function (event) {
+        const { imageData, offset } = event.data;
+        pixels.set(new Uint8ClampedArray(imageData), offset);
+        completed++;
+        console.log(imageData, 'imageData')
+        // 所有 Workers 都完成后，更新 Canvas
+        if (completed === workers.length) {
+          ctx.putImageData(new ImageData(pixels, w, h), 0, 0);
+          let et = performance.now();
+          console.log('JS multi worker', Math.floor(et - st) + 'ms')
+          jsmt.innerHTML = Math.floor(et - st) + 'ms'
+        }
+      };
+    }
   }
 })();
