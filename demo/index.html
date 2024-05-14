@@ -1,23 +1,25 @@
-
 <!DOCTYPE html>
 <html>
 
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="origin-trial" content="AqNtasNdzRCCpLdqrDnEZ9m2aasisusopvULDGgOd40+CBiG/20x3H5pVyEY8SyxD1QrVXmtScp382LdY1A6MwkAAABgeyJvcmlnaW4iOiJodHRwOi8vMTI3LjAuMC4xOjMwMDAiLCJmZWF0dXJlIjoiVW5yZXN0cmljdGVkU2hhcmVkQXJyYXlCdWZmZXIiLCJleHBpcnkiOjE3Mzk5MjMxOTl9">
+  <meta http-equiv="origin-trial"
+    content="AqNtasNdzRCCpLdqrDnEZ9m2aasisusopvULDGgOd40+CBiG/20x3H5pVyEY8SyxD1QrVXmtScp382LdY1A6MwkAAABgeyJvcmlnaW4iOiJodHRwOi8vMTI3LjAuMC4xOjMwMDAiLCJmZWF0dXJlIjoiVW5yZXN0cmljdGVkU2hhcmVkQXJyYXlCdWZmZXIiLCJleHBpcnkiOjE3Mzk5MjMxOTl9">
   <title>Hello wasm-pack!</title>
+  <script src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script>
   <style>
     body {
       width: 100vw;
       height: 100vh;
 
-      overflow: hidden;
+      /* overflow: hidden; */
     }
 
     .wrapper {
       width: 100vw;
       display: flex;
       flex-direction: row;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: center;
       margin-bottom: 12px;
@@ -34,9 +36,7 @@
     canvas {
       /* float: left; */
       width: 24vw;
-
     }
-
     img {
       width: 24vw;
       object-fit: contain;
@@ -49,41 +49,47 @@
 
     .option {
       display: flex;
-      flex-direction: row;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
 
     }
-    .option input{
+
+    .option input {
       margin: 0 16px 0 6px;
     }
   </style>
-    <script src="./index.js"></script>
+  <script src="./index.js"></script>
 </head>
 
 <body>
   <div class="wrapper">
-    <div class="item"><img id='origin'  src="./test.png" />
-      <div>origin</div>
-      <div >render time</div>
-    </div>
     <div class="item"> <canvas id="c1"></canvas>
-      <div id="wasm-title">wasm</div>
+      <div id="wasm-title">wasm</div><input type="checkbox" checked class="_wasm">
       <div id="wasm-t"></div>
     </div>
 
     <div class="item"><canvas id="c2"></canvas>
-      <div>js single-thread</div>
+      <div>js single-thread</div><input type="checkbox" checked class="_jss">
       <div id="js-t"></div>
     </div>
     <div class="item"><canvas id="c3"></canvas>
-      <div>js multi-thread</div>
+      <div>js multi-thread</div><input type="checkbox" checked class="_jsm">
       <div id="js-m-t"></div>
+    </div>
+    <div class="item"><canvas id="c4"></canvas>
+      <div>webgl</div><input type="checkbox" checked class="_webgl"></input>
+      <div id="gl-t">xxx</div>
     </div>
   </div>
 
   <div class="option">
-    <div>color:</div><input id="color-input" type="color" />
+
+    <div>color:<input id="color-input" type="color" /></div>
+    <div class="item"><img id='origin' src="./test.png" />
+      <div>origin</div>
+      <div>render time</div>
+    </div>
   </div>
 </body>
 
